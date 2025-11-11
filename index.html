@@ -1,4 +1,4 @@
-<!-- index.html -->
+<!-- index.html (actualizado) -->
 <!doctype html>
 <html lang="es">
 <head>
@@ -39,10 +39,11 @@
   label{display:block; margin-top:16px; font-weight:600}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
   select,input,button{font-size:14px}
-  select,input[type="number"]{
+  select,input[type="number"],input[type="text"],textarea{
     width:100%; padding:10px; border-radius:10px; border:1px solid var(--line);
     background:#0c0f15; color:var(--text)
   }
+  textarea{min-height:72px; resize:vertical}
   #guardar,#downloadCsv{
     width:100%; margin-top:14px; padding:12px; border-radius:10px; cursor:pointer;
     border:1px solid var(--line); background:var(--muted); color:var(--text)
@@ -58,6 +59,12 @@
 <body>
 <div class="wrap">
   <h1>Mood Board</h1>
+
+<!-- PATCH: color picker -->
+<div class="bar" style="margin-bottom:12px">
+  <input type="color" id="bgColorPicker" value="#0f1115" style="height:40px; padding:0 4px; cursor:pointer">
+  <button id="applyBgColor">Aplicar fondo</button>
+</div>
   <div class="panel">
     <div id="buttons"></div>
 
@@ -72,10 +79,18 @@
       <div class="hint" style="align-self:center">1=leve · 10=extrema</div>
     </div>
 
-    <label>Disparador</label>
+    <!-- Disparador → texto visible 'Trigger' (se mantienen IDs para compatibilidad) -->
+    <label>Trigger</label>
     <div class="row2">
       <select id="disparadorSel"></select>
-      <input id="disparadorNuevo" placeholder="Nuevo disparador (solo ‘Otro’)" disabled>
+      <input id="disparadorNuevo" placeholder="Nuevo trigger (solo ‘Otro’)" disabled>
+    </div>
+
+    <!-- Nuevo: Impulso -->
+    <label>Impulso</label>
+    <div class="row2">
+      <select id="impulsoSel"></select>
+      <input id="impulsoNuevo" placeholder="Nuevo impulso (solo ‘Otro’)" disabled>
     </div>
 
     <label>Estrategia</label>
@@ -83,6 +98,10 @@
       <select id="afrontamientoSel"></select>
       <input id="afrontamientoNuevo" placeholder="Nueva estrategia (solo ‘Otro’)" disabled>
     </div>
+
+    <!-- Nuevo: Pensamiento libre -->
+    <label>Pensamiento</label>
+    <textarea id="pensamiento" placeholder="Escribe el pensamiento asociado"></textarea>
 
     <button id="guardar">Guardar registro</button>
     <button id="downloadCsv">Descargar CSV</button>
@@ -99,11 +118,13 @@
   const defaultEmotions = ['Ira','Ansiedad','Vergüenza','Tristeza','Vacío','Calma'];
   const defaultTriggers  = ['Discusión','Crítica','Soledad','Sobrecarga','Recuerdo','Otro'];
   const defaultCoping    = ['Respiración','Escritura','Pausa sensorial','Contacto social','Actividad física','Música','Otro'];
+  const defaultImpulses  = ['Aislarme','Responder de inmediato','Comer','Comprar','Procrastinar','Otro'];
 
   // Estado
   let emotions = JSON.parse(localStorage.getItem('emociones')) || defaultEmotions.slice();
   let triggers = JSON.parse(localStorage.getItem('disparadores')) || defaultTriggers.slice();
   let copings  = JSON.parse(localStorage.getItem('afrontamientos')) || defaultCoping.slice();
+  let impulses = JSON.parse(localStorage.getItem('impulsos')) || defaultImpulses.slice();
   let entries  = JSON.parse(localStorage.getItem('registros')) || [];
   let currentEmotion = null;
 
@@ -118,6 +139,10 @@
   const afrontSel       = document.getElementById('afrontamientoSel');
   const afrontNuevo     = document.getElementById('afrontamientoNuevo');
 
+  const impulsoSel      = document.getElementById('impulsoSel');
+  const impulsoNuevo    = document.getElementById('impulsoNuevo');
+  const pensamientoEl   = document.getElementById('pensamiento');
+
   function fillSelect(sel, arr){
     sel.innerHTML='';
     sel.add(new Option('Seleccionar',''));
@@ -129,7 +154,20 @@
     if(input.disabled) input.value='';
   }
 
-  function renderButtons(){
+  function // Aplicar color de fondo
+  const bgPicker = document.getElementById('bgColorPicker');
+  const applyBg = document.getElementById('applyBgColor');
+
+  const savedBg = localStorage.getItem('bgColor');
+  if(savedBg){ document.body.style.background = savedBg; bgPicker.value = savedBg; }
+
+  applyBg.onclick = ()=>{
+    const c = bgPicker.value;
+    document.body.style.background = c;
+    localStorage.setItem('bgColor', c);
+  };
+
+  renderButtons(){
     buttonsWrap.innerHTML='';
     emotions.forEach(e=>{
       const b=document.createElement('button');
@@ -145,9 +183,11 @@
   function renderSelects(){
     fillSelect(disparadorSel, triggers);
     fillSelect(afrontSel, copings);
+    fillSelect(impulsoSel, impulses);
   }
   disparadorSel.addEventListener('change', ()=>toggleNewInput(disparadorSel, disparadorNuevo));
   afrontSel.addEventListener('change', ()=>toggleNewInput(afrontSel, afrontNuevo));
+  impulsoSel.addEventListener('change', ()=>toggleNewInput(impulsoSel, impulsoNuevo));
 
   addEmotion.onclick=()=>{
     const val = newEmotion.value.trim();
@@ -167,11 +207,23 @@
     let disparador = disparadorSel.value;
     if(disparador === 'Otro'){
       const nv = disparadorNuevo.value.trim();
-      if(!nv){ alert('Escribe el nuevo disparador.'); return; }
+      if(!nv){ alert('Escribe el nuevo trigger.'); return; }
       disparador = nv;
       if(!triggers.includes(nv)){
         triggers.push(nv);
         localStorage.setItem('disparadores', JSON.stringify(triggers));
+        renderSelects();
+      }
+    }
+
+    let impulso = impulsoSel.value;
+    if(impulso === 'Otro'){
+      const nv = impulsoNuevo.value.trim();
+      if(!nv){ alert('Escribe el nuevo impulso.'); return; }
+      impulso = nv;
+      if(!impulses.includes(nv)){
+        impulses.push(nv);
+        localStorage.setItem('impulsos', JSON.stringify(impulses));
         renderSelects();
       }
     }
@@ -188,12 +240,16 @@
       }
     }
 
+    const pensamiento = pensamientoEl.value.trim();
+
     const entry = {
       fecha: new Date().toLocaleString(),
       emocion: currentEmotion,
       intensidad: inten,
       disparador,
-      estrategia: afront
+      impulso,
+      estrategia: afront,
+      pensamiento
     };
     entries.push(entry);
     localStorage.setItem('registros', JSON.stringify(entries));
@@ -204,7 +260,9 @@
   function resetForm(){
     intensidad.value = 5;
     disparadorSel.value=''; disparadorNuevo.value=''; disparadorNuevo.disabled=true;
+    impulsoSel.value=''; impulsoNuevo.value=''; impulsoNuevo.disabled=true;
     afrontSel.value=''; afrontNuevo.value=''; afrontNuevo.disabled=true;
+    pensamientoEl.value='';
     currentEmotion=null;
     document.querySelectorAll('#buttons button').forEach(x=>x.classList.remove('active'));
   }
@@ -215,16 +273,26 @@
     div.innerHTML = entries.map(r =>
       `<div class="entry">
         <b>${r.emocion}</b> (${r.intensidad}) — ${r.fecha}<br>
-        <span class="hint">Disparador:</span> ${r.disparador || '-'} ·
+        <span class="hint">Trigger:</span> ${r.disparador || '-'} ·
+        <span class="hint">Impulso:</span> ${r.impulso || '-'} ·
         <span class="hint">Estrategia:</span> ${r.estrategia || '-'}
+        ${r.pensamiento ? `<div><span class="hint">Pensamiento:</span> ${r.pensamiento}</div>` : ''}
       </div>`
     ).join('');
   }
 
   // CSV + Web Share (iOS compatible)
   function buildCsv(){
-    const rows = [['fecha','emocion','intensidad','disparador','estrategia']];
-    entries.forEach(r=>rows.push([r.fecha,r.emocion,r.intensidad,r.disparador||'',r.estrategia||'']));
+    const rows = [['fecha','emocion','intensidad','disparador','impulso','estrategia','pensamiento']];
+    entries.forEach(r=>rows.push([
+      r.fecha,
+      r.emocion,
+      r.intensidad,
+      r.disparador||'',
+      r.impulso||'',
+      r.estrategia||'',
+      r.pensamiento||''
+    ]));
     return rows.map(row => row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   }
   document.getElementById('downloadCsv').onclick=async()=>{
